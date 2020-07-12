@@ -1,150 +1,222 @@
-set nocompatible
+set nocompatible " not vi compatible
 
-" Initialize Pathogen
-runtime bundle/vim-pathogen/autoload/pathogen.vim
-execute pathogen#infect()
+"------------------
+" Syntax and indent
+"------------------
+syntax on " turn on syntax highlighting
+set showmatch " show matching braces when text indicator is over them
 
-" Enable syntax highlighting
-syntax on
-filetype plugin indent on
+" highlight current line, but only in active window
+augroup CursorLineOnlyInActiveWindow
+    autocmd!
+    autocmd VimEnter,WinEnter,BufWinEnter * setlocal cursorline
+    autocmd WinLeave * setlocal nocursorline
+augroup END
 
-" Colorscheme see https://github.com/hukl/Smyck-Color-Scheme
-color smyck
+" vim can autodetect this based on $TERM (e.g. 'xterm-256color')
+" but it can be set to force 256 colors
+" set t_Co=256
+if has('gui_running')
+    colorscheme solarized
+    let g:lightline = {'colorscheme': 'solarized'}
+elseif &t_Co < 256
+    colorscheme default
+    set nocursorline " looks bad in this mode
+else
+    set background=dark
+    let g:solarized_termcolors=256 " instead of 16 color with mapping in terminal
+    colorscheme solarized
+    " customized colors
+    highlight SignColumn ctermbg=234
+    highlight StatusLine cterm=bold ctermfg=245 ctermbg=235
+    highlight StatusLineNC cterm=bold ctermfg=245 ctermbg=235
+    let g:lightline = {'colorscheme': 'dark'}
+    highlight SpellBad cterm=underline
+    " patches
+    highlight CursorLineNr cterm=NONE
+endif
 
-" Add line numbers
-set number
-set ruler
-set cursorline
+filetype plugin indent on " enable file type detection
+set autoindent
 
-" Disable Backup and Swap files
-set noswapfile
-set nobackup
-set nowritebackup
-
-" Set encoding
-set encoding=utf-8
-
-" Whitespace stuff
-set nowrap
+"---------------------
+" Basic editing config
+"---------------------
+set shortmess+=I " disable startup message
+set nu " number lines
+set rnu " relative line numbering
+set incsearch " incremental search (as string is being typed)
+set hls " highlight search
+set listchars=tab:>>,nbsp:~ " set list to see tabs and non-breakable spaces
+set lbr " line break
+set scrolloff=5 " show lines above and below cursor (when possible)
+set noshowmode " hide mode
+set laststatus=2
+set backspace=indent,eol,start " allow backspacing over everything
+set timeout timeoutlen=1000 ttimeoutlen=100 " fix slow O inserts
+set lazyredraw " skip redrawing screen in some cases
+set autochdir " automatically set current directory to directory of last opened file
+set hidden " allow auto-hiding of edited buffers
+set history=8192 " more history
+set nojoinspaces " suppress inserting two spaces between sentences
+" use 4 spaces instead of tabs during formatting
+set expandtab
 set tabstop=4
 set shiftwidth=4
 set softtabstop=4
-set expandtab
+" smart case-sensitive search
+set ignorecase
+set smartcase
+" tab completion for files/bufferss
+set wildmode=longest,list
+set wildmenu
+set mouse+=a " enable mouse mode (scrolling, selection, etc)
+if &term =~ '^screen'
+    " tmux knows the extended mouse mode
+    set ttymouse=xterm2
+endif
 
-" Disable Mode Display because Status line is on
-set noshowmode
+"--------------------
+" Misc configurations
+"--------------------
 
-" Show trailing spaces and highlight hard tabs
-set list listchars=tab:»·,trail:·
+" unbind keys
+map <C-a> <Nop>
+map <C-x> <Nop>
+nmap Q <Nop>
 
-" allow backspacing over everything in insert mode
-set backspace=indent,eol,start
+" disable audible bell
+set noerrorbells visualbell t_vb=
 
-" Strip trailing whitespaces on each save
-fun! <SID>StripTrailingWhitespaces()
-    let l = line(".")
-    let c = col(".")
-    %s/\s\+$//e
-    call cursor(l, c)
-endfun
-autocmd BufWritePre * :call <SID>StripTrailingWhitespaces()
+" open new split panes to right and bottom, which feels more natural
+set splitbelow
+set splitright
 
-" Close window if last remaining window is NerdTree
-autocmd bufenter * if (winnr("$") == 1 && exists("b:NERDTree") && b:NERDTree.isTabTree()) | q | endif
+" quicker window movement
+nnoremap <C-j> <C-w>j
+nnoremap <C-k> <C-w>k
+nnoremap <C-h> <C-w>h
+nnoremap <C-l> <C-w>l
 
-" Search related settings
-set incsearch
-set hlsearch
+" movement relative to display lines
+nnoremap <silent> <Leader>d :call ToggleMovementByDisplayLines()<CR>
+function SetMovementByDisplayLines()
+    noremap <buffer> <silent> <expr> k v:count ? 'k' : 'gk'
+    noremap <buffer> <silent> <expr> j v:count ? 'j' : 'gj'
+    noremap <buffer> <silent> 0 g0
+    noremap <buffer> <silent> $ g$
+endfunction
+function ToggleMovementByDisplayLines()
+    if !exists('b:movement_by_display_lines')
+        let b:movement_by_display_lines = 0
+    endif
+    if b:movement_by_display_lines
+        let b:movement_by_display_lines = 0
+        silent! nunmap <buffer> k
+        silent! nunmap <buffer> j
+        silent! nunmap <buffer> 0
+        silent! nunmap <buffer> $
+    else
+        let b:movement_by_display_lines = 1
+        call SetMovementByDisplayLines()
+    endif
+endfunction
 
-" Map Ctrl+l to clear highlighted searches
-nnoremap <silent> <C-l> :<C-u>nohlsearch<CR><C-l>
+" toggle relative numbering
+nnoremap <C-n> :set rnu!<CR>
 
-" Highlight characters behind the 80 chars margin
-:au BufWinEnter * let w:m2=matchadd('ColumnMargin', '\%>80v.\+', -1)
+" save read-only files
+command -nargs=0 Sudow w !sudo tee % >/dev/null
 
-" Disable code folding
-set nofoldenable
+"---------------------
+" Plugin configuration
+"---------------------
 
-" Always show status bar
-set laststatus=2
+" nerdtree
+nnoremap <Leader>n :NERDTreeToggle<CR>
+nnoremap <Leader>f :NERDTreeFind<CR>
 
-" NERDTree configuration
-let NERDTreeIgnore=['\.pyc$', '\.rbc$', '\~$']
-map <Leader>n :NERDTreeToggle<CR>
+" buffergator
+let g:buffergator_suppress_keymaps = 1
+nnoremap <Leader>b :BuffergatorToggle<CR>
 
+" gundo
+nnoremap <Leader>u :GundoToggle<CR>
+if has('python3')
+    let g:gundo_prefer_python3 = 1
+endif
 
-" Always show ALE Gutter
-let g:ale_sign_column_always = 1
+" ctrlp
+nnoremap ; :CtrlPBuffer<CR>
+let g:ctrlp_switch_buffer = 0
+let g:ctrlp_show_hidden = 1
 
-" No bgcolor for ALE SignColumn
-highlight clear SignColumn
+" ag / ack.vim
+command -nargs=+ Gag Gcd | Ack! <args>
+nnoremap K :Gag "\b<C-R><C-W>\b"<CR>:cw<CR>
+if executable('ag')
+    let g:ctrlp_user_command = 'ag %s -l --nocolor --hidden -g ""'
+    let g:ackprg = 'ag --vimgrep'
+endif
 
-" ALE Linting Settings
-" Erlang linting done via https://github.com/ten0s/syntaxerl
-" Download/Build it and put it in your $PATH
-let g:ale_linters = {
-\   'erlang': ['syntaxerl'],
-\   'javascript': ['eslint'],
+" syntastic
+let g:syntastic_always_populate_loc_list = 1
+let g:syntastic_auto_loc_list = 1
+let g:syntastic_check_on_wq = 0
+let g:syntastic_mode_map = {
+    \ 'mode': 'passive',
+    \ 'active_filetypes': [],
+    \ 'passive_filetypes': []
 \}
+nnoremap <Leader>s :SyntasticCheck<CR>
+nnoremap <Leader>r :SyntasticReset<CR>
+nnoremap <Leader>i :SyntasticInfo<CR>
+nnoremap <Leader>m :SyntasticToggleMode<CR>
 
-" Ignorde JS files on CTAGS generation
-let g:vim_tags_ignore_files = ['.gitignore', '.svnignore', '.cvsignore', '*.js', '*.json', '*.css']
+" easymotion
+map <Space> <Plug>(easymotion-prefix)
 
-" make uses real tabs
-au FileType make set noexpandtab
+" incsearch
+map / <Plug>(incsearch-forward)
+map ? <Plug>(incsearch-backward)
+map g/ <Plug>(incsearch-stay)
 
-" Ruby uses 2 spaces
-au FileType ruby set softtabstop=2 tabstop=2 shiftwidth=2
+" incsearch-easymotion
+map z/ <Plug>(incsearch-easymotion-/)
+map z? <Plug>(incsearch-easymotion-?)
+map zg/ <Plug>(incsearch-easymotion-stay)
 
-" Go uses tabs
-au FileType go set noexpandtab tabstop=4 shiftwidth=4
+" argwrap
+nnoremap <Leader>w :ArgWrap<CR>
 
-" Go Foo
-let g:go_fmt_command = "goimports"
+noremap <Leader>x :OverCommandLine<CR>
 
-" Thorfile, Rakefile, Vagrantfile and Gemfile are Ruby
-au BufRead,BufNewFile {Gemfile,Rakefile,Vagrantfile,Thorfile,config.ru}    set ft=ruby
+" markdown
+let g:markdown_fenced_languages = [
+    \ 'bash=sh',
+    \ 'c',
+    \ 'coffee',
+    \ 'erb=eruby',
+    \ 'javascript',
+    \ 'json',
+    \ 'perl',
+    \ 'python',
+    \ 'ruby',
+    \ 'yaml',
+    \ 'go',
+    \ 'racket',
+\]
+let g:markdown_syntax_conceal = 0
 
-" add json syntax highlighting
-au BufNewFile,BufRead *.json set ft=javascript
+" fugitive
+set tags^=.git/tags;~
 
-" make Python follow PEP8 ( http://www.python.org/dev/peps/pep-0008/ )
-au FileType python set softtabstop=4 tabstop=4 shiftwidth=4 textwidth=79
-au FileType ruby   set softtabstop=2 tabstop=2 shiftwidth=2
+"---------------------
+" Local customizations
+"---------------------
 
-" ctrp custom ignores
-let g:ctrlp_custom_ignore = {
-  \ 'dir':  '\.git$\|\.hg$\|\.svn$\|\.eunit$',
-  \ 'file': '\.exe$\|\.so$\|\.dll\|\.beam$\|\.DS_Store$'
-  \ }
-
-
-" Use Ag instead of Ack
-let g:ackprg = 'ag --nogroup --nocolor --column'
-
-" Gitgutter
-set updatetime=250
-
-" lightline / Ale
-
-let g:lightline = {
-      \ 'colorscheme': 'smyck'
-\}
-
-let g:lightline.component_expand = {
-      \  'linter_checking': 'lightline#ale#checking',
-      \  'linter_warnings': 'lightline#ale#warnings',
-      \  'linter_errors': 'lightline#ale#errors',
-      \  'linter_ok': 'lightline#ale#ok',
-      \ }
-
-let g:lightline.component_type = {
-      \     'linter_checking': 'left',
-      \     'linter_warnings': 'warning',
-      \     'linter_errors': 'error',
-      \     'linter_ok': 'left',
-      \ }
-
-
-let g:lightline.active = { 'right': [['filetype'],[ 'linter_checking', 'linter_errors', 'linter_warnings', 'linter_ok' ]] }
-
+" local customizations in ~/.vimrc_local
+let $LOCALFILE=expand("~/.vimrc_local")
+if filereadable($LOCALFILE)
+    source $LOCALFILE
+endif

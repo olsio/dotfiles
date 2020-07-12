@@ -14,12 +14,3 @@ autoload -U compinit
 compinit -i
 
 PATH=/usr/local/bin:/usr/local/sbin:$PATH
-
-# Go Path related exports
-export GOPATH=~/Projekte/Go
-export PATH=$PATH:$GOPATH/bin
-
-
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
